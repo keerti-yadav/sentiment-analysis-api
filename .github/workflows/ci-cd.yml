@@ -1,80 +1,70 @@
 name: CI/CD Pipeline
 
 on:
-push:
-branches: [main]
-pull_request:
-branches: [main]
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
 jobs:
-test:
-runs-on: ubuntu-latest
-
-```
-steps:
-  - uses: actions/checkout@v3
-
-  - name: Set up Python
-    uses: actions/setup-python@v4
-    with:
-      python-version: '3.11'
-
-  - name: Install dependencies
-    run: |
-      python -m pip install --upgrade pip
-      pip install -r requirements.txt
-      pip install pytest httpx==0.24.1
-
-  - name: Download NLTK data
-    run: |
-      python -c "import nltk; nltk.download('movie_reviews'); nltk.download('punkt'); nltk.download('stopwords')"
-
-  - name: Train model
-    run: |
-      python scripts/train.py
-
-  - name: Set PYTHONPATH
-    run: echo "PYTHONPATH=." >> $GITHUB_ENV
-
-  - name: Run tests
-    run: |
-      pytest tests/ -v
-```
-
-build:
-needs: test
-runs-on: ubuntu-latest
-if: github.ref == 'refs/heads/main'
-
-```
-steps:
-  - uses: actions/checkout@v3
-
-  - name: Set up Python
-    uses: actions/setup-python@v4
-    with:
-      python-version: '3.11'
-
-  - name: Install dependencies
-    run: |
-      pip install -r requirements.txt
-
-  - name: Download NLTK data
-    run: |
-      python -c "import nltk; nltk.download('movie_reviews'); nltk.download('punkt'); nltk.download('stopwords')"
-
-  - name: Train model
-    run: |
-      python scripts/train.py
-
-  - name: Build Docker image
-    run: |
-      docker build -t sentiment-api:latest .
-
-  - name: Test Docker container
-    run: |
-      docker run -d -p 8000:8000 --name test-api sentiment-api:latest
-      sleep 15
-      curl -f http://localhost:8000/health || exit 1
-      docker stop test-api
-```
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest httpx
+    
+    - name: Download NLTK data
+      run: |
+        python -c "import nltk; nltk.download('movie_reviews'); nltk.download('punkt'); nltk.download('stopwords')"
+    
+    - name: Train model
+      run: |
+        python scripts/train.py
+    
+    - name: Run tests
+      run: |
+        pytest tests/ -v
+  
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        pip install -r requirements.txt
+    
+    - name: Train model
+      run: |
+        python -c "import nltk; nltk.download('movie_reviews'); nltk.download('punkt'); nltk.download('stopwords')"
+        python scripts/train.py
+    
+    - name: Build Docker image
+      run: |
+        docker build -t sentiment-api:latest .
+    
+    - name: Test Docker container
+      run: |
+        docker run -d -p 8000:8000 --name test-api sentiment-api:latest
+        sleep 15
+        curl -f http://localhost:8000/health || exit 1
+        docker stop test-api
